@@ -16,6 +16,9 @@ import android.util.Base64
 import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 
+import java.io.RandomAccessFile
+import com.tom_roush.pdfbox.pdmodel.encryption.AccessPermission
+import com.tom_roush.pdfbox.pdmodel.encryption.StandardProtectionPolicy
 
 /** DecryptPdfPlugin */
 class DecryptPdfPlugin: FlutterPlugin, MethodCallHandler {
@@ -192,6 +195,44 @@ class DecryptPdfPlugin: FlutterPlugin, MethodCallHandler {
           }
         }.start()
       }
+      "encryptPdf" -> {
+          val filePath = call.argument<String>("filePath")
+          val ownerPassword = call.argument<String>("ownerPassword")
+          val userPassword = call.argument<String>("userPassword")
+
+          if (filePath == null || ownerPassword == null || userPassword == null) {
+              result.error("INVALID_ARGUMENTS", "File path or password is null", null)
+              return
+          }
+
+          Thread {
+              encryptPdf(filePath, ownerPassword, userPassword, result)
+          }.start()
+      }
+      "decryptPdf" -> {
+          val filePath = call.argument<String>("filePath")
+          val password = call.argument<String>("password")
+
+          if (filePath == null || password == null) {
+              result.error("INVALID_ARGUMENTS", "File path or password is null", null)
+              return
+          }
+
+          Thread {
+              decryptPdf(filePath, password, result)
+          }.start()
+      }
+      "isEncrypted" -> {
+          val filePath = call.argument<String>("filePath")
+          if (filePath == null) {
+              result.error("INVALID_ARGUMENTS", "File path is null", null)
+              return
+          }
+
+          Thread {
+            isPdfEncrypted(filePath, result)
+          }.start()
+      }
       else -> {
         result.notImplemented()
       }
@@ -202,7 +243,107 @@ class DecryptPdfPlugin: FlutterPlugin, MethodCallHandler {
     channel.setMethodCallHandler(null)
     flutterPluginBinding = null
   }
+
+  private fun encryptPdf(filePath: String, ownerPassword: String, userPassword: String, result: Result) {
+    try {
+      val file = File(filePath)
+      if (!file.exists()) {
+        result.error(ERROR_FILE_NOT_FOUND, "PDF file not found at path: $filePath", null)
+        return
+      }
+      
+      PDDocument.load(file).use { document ->
+        if (document.isEncrypted) {
+          result.error(ERROR_PDF_CORRUPTED, "PDF file is already encrypted", null)
+          return@use
+        }
+        val accessPermission = AccessPermission()
+        val protectionPolicy = StandardProtectionPolicy(ownerPassword, userPassword, accessPermission).apply {
+          encryptionKeyLength = 128
+          permissions = accessPermission
+        }
+        document.protect(protectionPolicy)
+        document.save(file)
+        result.success(true)
+      }
+    } catch (e: InvalidPasswordException) {
+      result.error(ERROR_INVALID_PASSWORD, "Incorrect password for PDF", null)
+    } catch (e: IOException) {
+      result.error(ERROR_IO, "Failed to process PDF: ${e.message}", null)
+    } catch (e: OutOfMemoryError) {
+      result.error(ERROR_OUT_OF_MEMORY, "PDF file too large to process", null)
+    } catch (e: Exception) {
+      result.error(ERROR_UNKNOWN, "Failed to process PDF: ${e.message}", null)
+    }
+  }
+
+  private fun decryptPdf(filePath: String, password: String, result: Result) {
+    try {
+      val file = File(filePath)
+      if (!file.exists()) {
+        result.error(ERROR_FILE_NOT_FOUND, "PDF file not found at path: $filePath", null)
+        return
+      }
+      
+      PDDocument.load(file, password).use { document ->
+        if (document.isEncrypted) {
+          document.isAllSecurityToBeRemoved = true
+          document.save(file)
+        }
+        result.success(true)
+      }
+    } catch (e: InvalidPasswordException) {
+      result.error(ERROR_INVALID_PASSWORD, "Incorrect password for PDF", null)
+    } catch (e: IOException) {
+      result.error(ERROR_IO, "Failed to process PDF: ${e.message}", null)
+    } catch (e: OutOfMemoryError) {
+      result.error(ERROR_OUT_OF_MEMORY, "PDF file too large to process", null)
+    } catch (e: Exception) {
+      result.error(ERROR_UNKNOWN, "Failed to process PDF: ${e.message}", null)
+    }
+  }
+
+  private fun isPdfEncrypted(filePath: String, result: Result) {
+    val file = File(filePath)
+    if (!file.exists()) {
+        result.error("FILE_NOT_FOUND", "File does not exist: $filePath", null)
+        return
+    }
+
+    RandomAccessFile(file, "r").use { raf ->
+        val fileLength = raf.length()
+        // PDF trailer 通常在文件结尾，所以只读最后 4KB 足够
+        val readSize = if (fileLength > 4096) 4096 else fileLength.toInt()
+        raf.seek(fileLength - readSize)
+
+        val buffer = ByteArray(readSize)
+        raf.readFully(buffer)
+
+        // 允许解码失败的情况下最大限度恢复字符串
+        val tailString = buffer.toString(Charsets.UTF_8)
+
+        // 查找 trailer
+        val trailerIndex = tailString.lastIndexOf("trailer")
+        if (trailerIndex != -1) {
+            val dictStart = tailString.indexOf("<<", trailerIndex)
+            val dictEnd = tailString.indexOf(">>", dictStart)
+            if (dictStart != -1 && dictEnd != -1) {
+                val trailerDict = tailString.substring(dictStart, dictEnd + 2)
+                if (trailerDict.contains("/Encrypt")) {
+                    result.success(true)
+                    return
+                }
+            }
+        }
+
+        // fallback：直接扫描尾部字符串是否包含 /Encrypt
+        if (tailString.contains("/Encrypt")) {
+            result.success(true)
+            return
+        }
+
+        result.success(false)
+    }
+  } 
+
 }
-
-
-

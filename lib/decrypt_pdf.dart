@@ -31,4 +31,30 @@ class DecryptPdf {
       password: password,
     );
   }
+
+  static Future<bool> decryptPdf({
+    required String filePath,
+    required String password,
+  }) {
+    return DecryptPdfPlatform.instance.decryptPdf(
+      filePath: filePath,
+      password: password,
+    );
+  }
+
+  static Future<bool> encryptPdf({
+    required String filePath,
+    required String ownerPassword,
+    required String userPassword,
+  }) {
+    return DecryptPdfPlatform.instance.encryptPdf(
+      filePath: filePath,
+      ownerPassword: ownerPassword,
+      userPassword: userPassword,
+    );
+  }
+
+  static Future<bool> isEncrypted({required String filePath}) {
+    return DecryptPdfPlatform.instance.isEncrypted(filePath: filePath);
+  }
 }

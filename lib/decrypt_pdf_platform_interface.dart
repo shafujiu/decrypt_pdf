@@ -38,4 +38,23 @@ abstract class DecryptPdfPlatform extends PlatformInterface {
   }) {
     throw UnimplementedError('getPdfAsBase64() has not been implemented.');
   }
+
+   Future<bool> encryptPdf({
+    required String filePath,
+    required String ownerPassword,
+    required String userPassword,
+  }) {
+    throw UnimplementedError('encryptPdf() has not been implemented.');
+  }
+
+  Future<bool> decryptPdf({
+    required String filePath,
+    required String password,
+  }) {
+    throw UnimplementedError('decryptPdf() has not been implemented.');
+  }
+
+  Future<bool> isEncrypted({required String filePath}) {
+    throw UnimplementedError('isEncrypted() has not been implemented.');
+  }
 }

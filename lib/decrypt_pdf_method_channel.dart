@@ -68,4 +68,53 @@ class MethodChannelDecryptPdf extends DecryptPdfPlatform {
       rethrow;
     }
   }
+
+
+  @override
+  Future<bool> encryptPdf({required String filePath, required String ownerPassword, required String userPassword}) async {
+    try {
+      final bool result = await methodChannel.invokeMethod('encryptPdf', {
+        'filePath': filePath,
+        'ownerPassword': ownerPassword,
+        'userPassword': userPassword,
+      });
+      return result;
+    } on PlatformException catch (e) {
+      if (kDebugMode) {
+        print("Failed to encrypt PDF: '${e.message}'.");
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<bool> decryptPdf({required String filePath, required String password}) async {
+    try {
+      final bool result = await methodChannel.invokeMethod('decryptPdf', {
+        'filePath': filePath,
+        'password': password,
+      });
+      return result;
+    } on PlatformException catch (e) {
+      if (kDebugMode) {
+        print("Failed to decrypt PDF: '${e.message}'.");
+      }
+      rethrow;
+    }
+  }
+
+  @override
+  Future<bool> isEncrypted({required String filePath}) async {
+    try {
+      final bool result = await methodChannel.invokeMethod('isEncrypted', {
+        'filePath': filePath,
+      });
+      return result;
+    } on PlatformException catch (e) {
+      if (kDebugMode) {
+        print("Failed to check if PDF is encrypted: '${e.message}'.");
+      }
+      rethrow;
+    }
+  }
 }
