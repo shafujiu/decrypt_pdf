@@ -61,6 +61,18 @@ android {
 
 
 
+    packagingOptions {
+        // 告诉 Gradle 在合并资源时，遇到 META-INF/DEPENDENCIES 文件时，
+        // 只选择第一个找到的，忽略后续的。
+        pickFirst 'META-INF/DEPENDENCIES'
+        
+        // 建议也一并添加其他常见冲突文件
+        pickFirst 'META-INF/LICENSE'
+        pickFirst 'META-INF/NOTICE'
+        pickFirst 'META-INF/LICENSE.txt'
+        pickFirst 'META-INF/NOTICE.txt'
+    }
+
     testOptions {
         unitTests.all {
             useJUnitPlatform()
